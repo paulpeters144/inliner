@@ -1,0 +1,9 @@
+#!/bin/sh
+# Pre-commit hook for inliner.nvim
+# Runs lint checks before allowing commits.
+
+set -e
+
+echo "Running lua lint..."
+stylua --check lua/ plugin/ tests/
+luacheck lua/ plugin/ tests/
