@@ -90,6 +90,7 @@ M.config = {
     input = {
       prompt = "Question: ",
     },
+    max_width = 80,
   },
   diff_mode = false,
   diff = {

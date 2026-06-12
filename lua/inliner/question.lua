@@ -18,7 +18,11 @@ local SYSTEM_PROMPT =
   [[You are a concise programming assistant integrated into Neovim. Answer questions about the user's code with examples when relevant. Use markdown for code blocks.]]
 
 function M.create_window()
-  local width = math.floor(vim.o.columns * 0.85)
+  local max_width = state.config and state.config.max_width
+  local width = math.floor(vim.o.columns * 0.8)
+  if max_width then
+    width = math.min(width, max_width)
+  end
   local height = math.floor(vim.o.lines * 0.8)
   local row = math.floor((vim.o.lines - height) / 2)
   local col = math.floor((vim.o.columns - width) / 2)
