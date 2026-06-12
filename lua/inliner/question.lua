@@ -17,7 +17,7 @@ local state = {
 local SYSTEM_PROMPT =
   [[You are a concise programming assistant integrated into Neovim. Answer questions about the user's code with examples when relevant. Use markdown for code blocks.]]
 
-function M.create_window()
+local function get_win_config()
   local max_width = state.config and state.config.max_width
   local width = math.floor(vim.o.columns * 0.8)
   if max_width then
@@ -26,15 +26,7 @@ function M.create_window()
   local height = math.floor(vim.o.lines * 0.8)
   local row = math.floor((vim.o.lines - height) / 2)
   local col = math.floor((vim.o.columns - width) / 2)
-
-  state.buf = vim.api.nvim_create_buf(false, true)
-  vim.api.nvim_buf_set_option(state.buf, "buftype", "nofile")
-  vim.api.nvim_buf_set_option(state.buf, "bufhidden", "wipe")
-  vim.api.nvim_buf_set_option(state.buf, "modifiable", true)
-
-  state.width = width
-
-  state.win = vim.api.nvim_open_win(state.buf, true, {
+  return {
     relative = "editor",
     width = width,
     height = height,
@@ -44,9 +36,33 @@ function M.create_window()
     border = "rounded",
     title = " Inliner Question ",
     title_pos = "center",
-  })
+  }
+end
+
+function M.create_window()
+  local config = get_win_config()
+  local width = config.width
+  local height = config.height
+
+  state.buf = vim.api.nvim_create_buf(false, true)
+  vim.api.nvim_buf_set_option(state.buf, "buftype", "nofile")
+  vim.api.nvim_buf_set_option(state.buf, "bufhidden", "wipe")
+  vim.api.nvim_buf_set_option(state.buf, "modifiable", true)
+
+  state.width = width
+
+  state.win = vim.api.nvim_open_win(state.buf, true, config)
 
   vim.api.nvim_buf_set_option(state.buf, "filetype", "markdown")
+
+  vim.api.nvim_create_autocmd("VimResized", {
+    buffer = state.buf,
+    callback = function()
+      if state.win and vim.api.nvim_win_is_valid(state.win) then
+        vim.api.nvim_win_set_config(state.win, get_win_config())
+      end
+    end,
+  })
 
   vim.keymap.set("n", "q", function()
     M.close()
