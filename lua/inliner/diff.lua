@@ -22,11 +22,11 @@ local DEFAULT_MAPPINGS = {
 ---@class ConflictPosition
 ---@field current_start integer 0-indexed line of <<<<<<< marker
 ---@field current_content_start integer 0-indexed first line of current content
----@field current_content_end integer 0-indexed last line of current content
----@field middle integer 0-indexed line of ======= marker
----@field incoming_content_start integer 0-indexed first line of incoming content
----@field incoming_content_end integer 0-indexed last line of incoming content
----@field incoming_end integer 0-indexed line of >>>>>>> marker
+---@field current_content_end? integer 0-indexed last line of current content
+---@field middle? integer 0-indexed line of ======= marker
+---@field incoming_content_start? integer 0-indexed first line of incoming content
+---@field incoming_content_end? integer 0-indexed last line of incoming content
+---@field incoming_end? integer 0-indexed line of >>>>>>> marker
 
 ---@class BufferConflictState
 ---@field positions ConflictPosition[]
@@ -149,11 +149,11 @@ function M.detect_conflicts(lines)
         current_content_start = lnum + 1,
       }
       in_conflict = true
-    elseif in_conflict and line:match(CONFLICT_MIDDLE_PATTERN) then
+    elseif in_conflict and current_position and line:match(CONFLICT_MIDDLE_PATTERN) then
       current_position.current_content_end = lnum - 1
       current_position.middle = lnum
       current_position.incoming_content_start = lnum + 1
-    elseif in_conflict and line:match(CONFLICT_END_PATTERN) then
+    elseif in_conflict and current_position and line:match(CONFLICT_END_PATTERN) then
       current_position.incoming_content_end = lnum - 1
       current_position.incoming_end = lnum
       table.insert(positions, current_position)

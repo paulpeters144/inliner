@@ -45,15 +45,15 @@ function M.create_window()
   local height = config.height
 
   state.buf = vim.api.nvim_create_buf(false, true)
-  vim.api.nvim_buf_set_option(state.buf, "buftype", "nofile")
-  vim.api.nvim_buf_set_option(state.buf, "bufhidden", "wipe")
-  vim.api.nvim_buf_set_option(state.buf, "modifiable", true)
+  vim.bo[state.buf].buftype = "nofile"
+  vim.bo[state.buf].bufhidden = "wipe"
+  vim.bo[state.buf].modifiable = true
 
   state.width = width
 
   state.win = vim.api.nvim_open_win(state.buf, true, config)
 
-  vim.api.nvim_buf_set_option(state.buf, "filetype", "markdown")
+  vim.bo[state.buf].filetype = "markdown"
 
   vim.api.nvim_create_autocmd("VimResized", {
     buffer = state.buf,
@@ -211,13 +211,13 @@ function M.append(role, content)
   vim.list_extend(append_lines, lines)
   table.insert(append_lines, "")
 
-  vim.api.nvim_buf_set_option(state.buf, "modifiable", true)
+  vim.bo[state.buf].modifiable = true
   vim.api.nvim_buf_set_lines(state.buf, -1, -1, false, append_lines)
   vim.api.nvim_win_set_cursor(state.win, { vim.api.nvim_buf_line_count(state.buf), 0 })
 end
 
 function M.prompt_input()
-  if not state.buf or not vim.api.nvim_buf_is_valid(state.buf) then
+  if not state.buf or not vim.api.nvim_buf_is_valid(state.buf) or not state.config then
     return
   end
 

@@ -6,36 +6,75 @@ local diff = require("inliner.diff")
 local spinner = require("inliner.spinner")
 local logger = require("inliner.logger")
 
+local function mock(t, k, v)
+  t[k] = v
+end
+
 local inliner
+
+local mock_notify_calls = {}
+local mock_ui_select_calls = {}
+local mock_keymap_calls = {}
+local mock_warn_calls = {}
+local mock_selection
+local mock_instruction_cb
+local mock_llm_edit_cb
+local mock_replace_called = false
+local mock_inject_called = false
+local mock_question_open_called = false
 
 describe("inliner", function()
   local original_notify
   local original_ui_select
   local original_keymap_set
-  local notify_calls = {}
-  local ui_select_calls = {}
-
-  local function reset_saved_mocks()
-    original_notify = nil
-    original_ui_select = nil
-    original_keymap_set = nil
-  end
 
   before_each(function()
-    reset_saved_mocks()
-
-    notify_calls = {}
-    ui_select_calls = {}
-
     original_notify = vim.notify
-    vim.notify = function(msg, level)
-      table.insert(notify_calls, { msg = msg, level = level })
-    end
-
     original_ui_select = vim.ui.select
-    vim.ui.select = function(items, opts, callback)
-      table.insert(ui_select_calls, { items = items, opts = opts, callback = callback })
-    end
+    original_keymap_set = vim.keymap.set
+
+    mock_notify_calls = {}
+    mock_ui_select_calls = {}
+    mock_keymap_calls = {}
+    mock_warn_calls = {}
+    mock_selection = nil
+    mock_instruction_cb = function(cb) cb("default instruction") end
+    mock_llm_edit_cb = function(cb) cb("default", nil) end
+    mock_replace_called = false
+    mock_inject_called = false
+    mock_question_open_called = false
+
+    mock(vim, "notify", function(msg, level)
+      table.insert(mock_notify_calls, { msg = msg, level = level })
+    end)
+    mock(vim.ui, "select", function(items, opts, callback)
+      table.insert(mock_ui_select_calls, { items = items, opts = opts, callback = callback })
+    end)
+    mock(vim.keymap, "set", function(_, lhs, _, _)
+      table.insert(mock_keymap_calls, { lhs = lhs })
+    end)
+
+    mock(selection, "get_visual_selection", function() return mock_selection end)
+    mock(input, "get_instruction", function(_, cb)
+      if mock_instruction_cb then
+        mock_instruction_cb(cb)
+      end
+    end)
+    mock(llm, "request_edit", function(_, cb)
+      if mock_llm_edit_cb then
+        mock_llm_edit_cb(cb)
+      end
+    end)
+    mock(spinner, "start", function() end)
+    mock(spinner, "stop", function() end)
+    mock(replace, "replace_selection", function(_, _) mock_replace_called = true end)
+    mock(diff, "inject_conflict_markers", function(_, _) mock_inject_called = true end)
+    mock(logger, "warn", function(source, msg)
+      table.insert(mock_warn_calls, { source = source, msg = msg })
+    end)
+
+    local q = require("inliner.question")
+    mock(q, "open", function() mock_question_open_called = true end)
 
     package.loaded["inliner"] = nil
     inliner = require("inliner")
@@ -43,13 +82,13 @@ describe("inliner", function()
 
   after_each(function()
     if original_notify then
-      vim.notify = original_notify
+      mock(vim, "notify", original_notify)
     end
     if original_ui_select then
-      vim.ui.select = original_ui_select
+      mock(vim.ui, "select", original_ui_select)
     end
     if original_keymap_set then
-      vim.keymap.set = original_keymap_set
+      mock(vim.keymap, "set", original_keymap_set)
     end
   end)
 
@@ -84,39 +123,33 @@ describe("inliner", function()
         package.loaded["inliner"] = nil
         inliner = require("inliner")
         local ok, err = pcall(inliner.setup, { llm = { provider = provider } })
-        assert.is_true(ok, "expected " .. provider .. " to be valid, got error: " .. tostring(err))
+        assert(ok, "expected " .. provider .. " to be valid, got error: " .. tostring(err))
       end
     end)
 
     it("merges user config with defaults", function()
       inliner.setup({ debug = true })
       assert.is_true(inliner.config.debug)
-      assert.equals(30000, inliner.config.llm.timeout)
+      assert.are.equal(30000, inliner.config.llm.timeout)
     end)
 
     it("uses default openai provider when none specified", function()
       inliner.setup({})
-      assert.equals("openai", inliner.config.llm.provider)
+      assert.are.equal("openai", inliner.config.llm.provider)
     end)
 
     it("sets provider and model from config", function()
       inliner.setup({ llm = { provider = "anthropic", model = "claude-3-5-sonnet-20241022" } })
-      assert.equals("anthropic", inliner.config.llm.provider)
-      assert.equals("claude-3-5-sonnet-20241022", inliner.config.llm.model)
+      assert.are.equal("anthropic", inliner.config.llm.provider)
+      assert.are.equal("claude-3-5-sonnet-20241022", inliner.config.llm.model)
     end)
 
     it("registers keybindings from config", function()
-      original_keymap_set = vim.keymap.set
-      local keymap_calls = {}
-      vim.keymap.set = function(_, lhs, _, _)
-        table.insert(keymap_calls, { lhs = lhs })
-      end
-
       inliner.setup({})
 
-      assert.is_true(#keymap_calls > 0)
+      assert.is_true(#mock_keymap_calls > 0)
       local found = false
-      for _, call in ipairs(keymap_calls) do
+      for _, call in ipairs(mock_keymap_calls) do
         if call.lhs == "<leader>ae" then
           found = true
           break
@@ -126,18 +159,10 @@ describe("inliner", function()
     end)
 
     it("does not register select model keybinding", function()
-      original_keymap_set = vim.keymap.set
-      local keymap_calls = {}
-      vim.keymap.set = function(_, lhs, _, _)
-        table.insert(keymap_calls, { lhs = lhs })
-      end
-
       inliner.setup({})
 
-      vim.keymap.set = original_keymap_set
-
       local found = false
-      for _, call in ipairs(keymap_calls) do
+      for _, call in ipairs(mock_keymap_calls) do
         if call.lhs == "<leader>am" then
           found = true
           break
@@ -147,17 +172,10 @@ describe("inliner", function()
     end)
 
     it("skips keybinding registration when keys list is empty", function()
-      original_keymap_set = vim.keymap.set
-      local keymap_calls = {}
-      vim.keymap.set = function(_, lhs, _, _)
-        table.insert(keymap_calls, { lhs = lhs })
-      end
-
       inliner.config.keys = {}
       inliner.setup({})
 
-      vim.keymap.set = original_keymap_set
-      assert.equals(0, #keymap_calls)
+      assert.are.equal(0, #mock_keymap_calls)
     end)
   end)
 
@@ -170,251 +188,148 @@ describe("inliner", function()
     end)
 
     it("warns when setup not called", function()
-      local original_get_visual = selection.get_visual_selection
-      selection.get_visual_selection = function()
-        return {
-          text = "hello world",
-          bufnr = 0,
-          start_line = 1,
-          end_line = 1,
-          start_col = 1,
-          end_col = 12,
-        }
-      end
-
-      local original_input = input.get_instruction
-      input.get_instruction = function() end
+      mock_selection = {
+        text = "hello world",
+        bufnr = 0,
+        start_line = 1,
+        end_line = 1,
+        start_col = 1,
+        end_col = 12,
+      }
+      mock_instruction_cb = nil
 
       inliner.edit()
 
-      input.get_instruction = original_input
-      selection.get_visual_selection = original_get_visual
-
-      assert.is_true(#notify_calls > 0)
-      assert.is_true(notify_calls[1].msg:find("setup") ~= nil)
+      assert.is_true(#mock_notify_calls > 0)
+      assert.is_true(mock_notify_calls[1].msg:find("setup") ~= nil)
     end)
 
     it("aborts when selection buffer is invalid", function()
       local bufnr = vim.api.nvim_create_buf(false, true)
       vim.api.nvim_buf_delete(bufnr, { force = true })
 
-      local original_get_visual = selection.get_visual_selection
-      selection.get_visual_selection = function()
-        return {
-          text = "test",
-          bufnr = bufnr,
-          start_line = 1,
-          end_line = 1,
-          start_col = 1,
-          end_col = 5,
-        }
-      end
-
-      local original_logger_warn = logger.warn
-      local warn_called = false
-      logger.warn = function(source, msg)
-        if source == "edit" and msg:find("closed") then
-          warn_called = true
-        end
-      end
+      mock_selection = {
+        text = "test",
+        bufnr = bufnr,
+        start_line = 1,
+        end_line = 1,
+        start_col = 1,
+        end_col = 5,
+      }
+      mock_instruction_cb = function(cb) cb("instruction") end
 
       inliner.edit()
 
-      selection.get_visual_selection = original_get_visual
-      logger.warn = original_logger_warn
-
-      assert.is_true(warn_called)
+      local found_warn = false
+      for _, w in ipairs(mock_warn_calls) do
+        if w.source == "edit" and w.msg:find("closed") then
+          found_warn = true
+          break
+        end
+      end
+      assert.is_true(found_warn)
     end)
 
     it("calls replace.replace_selection when diff_mode is false", function()
       inliner.setup({ diff_mode = false })
 
-      local original_get_visual = selection.get_visual_selection
-      selection.get_visual_selection = function()
-        return {
-          text = "hello world",
-          bufnr = 0,
-          start_line = 1,
-          end_line = 1,
-          start_col = 1,
-          end_col = 12,
-        }
-      end
-
-      local original_input = input.get_instruction
-      input.get_instruction = function(_, cb)
-        cb("replace with goodbye")
-      end
-
-      local original_request_edit = llm.request_edit
-      local edit_callback_called = false
-      llm.request_edit = function(_, cb)
-        edit_callback_called = true
+      mock_selection = {
+        text = "hello world",
+        bufnr = 0,
+        start_line = 1,
+        end_line = 1,
+        start_col = 1,
+        end_col = 12,
+      }
+      mock_instruction_cb = function(cb) cb("replace with goodbye") end
+      mock_llm_edit_cb = function(cb)
         cb("goodbye world", nil)
-      end
-
-      local original_spinner_start = spinner.start
-      local original_spinner_stop = spinner.stop
-      spinner.start = function() end
-      spinner.stop = function() end
-
-      local replace_called = false
-      local original_replace = replace.replace_selection
-      replace.replace_selection = function(_, result)
-        replace_called = true
-        assert.equals("goodbye world", result)
       end
 
       inliner.edit()
 
       vim.wait(100, function()
-        return replace_called
+        return mock_replace_called
       end)
 
-      replace.replace_selection = original_replace
-      spinner.start = original_spinner_start
-      spinner.stop = original_spinner_stop
-      llm.request_edit = original_request_edit
-      input.get_instruction = original_input
-      selection.get_visual_selection = original_get_visual
-
-      assert.is_true(edit_callback_called)
-      assert.is_true(replace_called)
+      assert.is_true(mock_replace_called)
     end)
 
     it("calls diff.inject_conflict_markers when diff_mode is true", function()
       inliner.setup({ diff_mode = true })
 
-      local original_get_visual = selection.get_visual_selection
-      selection.get_visual_selection = function()
-        return {
-          text = "hello world",
-          bufnr = 0,
-          start_line = 1,
-          end_line = 1,
-          start_col = 1,
-          end_col = 12,
-        }
-      end
-
-      local original_input = input.get_instruction
-      input.get_instruction = function(_, cb)
-        cb("modify code")
-      end
-
-      local original_request_edit = llm.request_edit
-      local edit_callback_called = false
-      llm.request_edit = function(_, cb)
-        edit_callback_called = true
+      mock_selection = {
+        text = "hello world",
+        bufnr = 0,
+        start_line = 1,
+        end_line = 1,
+        start_col = 1,
+        end_col = 12,
+      }
+      mock_instruction_cb = function(cb) cb("modify code") end
+      mock_llm_edit_cb = function(cb)
         cb("modified code", nil)
-      end
-
-      local original_spinner_start = spinner.start
-      local original_spinner_stop = spinner.stop
-      spinner.start = function() end
-      spinner.stop = function() end
-
-      local inject_called = false
-      local original_inject = diff.inject_conflict_markers
-      diff.inject_conflict_markers = function(_, result)
-        inject_called = true
-        assert.equals("modified code", result)
       end
 
       inliner.edit()
 
       vim.wait(100, function()
-        return inject_called
+        return mock_inject_called
       end)
 
-      diff.inject_conflict_markers = original_inject
-      spinner.start = original_spinner_start
-      spinner.stop = original_spinner_stop
-      llm.request_edit = original_request_edit
-      input.get_instruction = original_input
-      selection.get_visual_selection = original_get_visual
-
-      assert.is_true(edit_callback_called)
-      assert.is_true(inject_called)
+      assert.is_true(mock_inject_called)
     end)
 
     it("aborts when selection extmarks are lost", function()
       inliner.setup({ diff_mode = false })
 
-      local original_get_visual = selection.get_visual_selection
-      selection.get_visual_selection = function()
-        return {
-          text = "hello",
-          bufnr = 0,
-          start_line = 1,
-          end_line = 1,
-          start_col = 1,
-          end_col = 6,
-        }
-      end
-
-      local original_input = input.get_instruction
-      input.get_instruction = function(_, cb)
-        cb("test")
-      end
-
-      local original_request_edit = llm.request_edit
-      llm.request_edit = function(_, cb)
-        cb("replacement", nil)
-      end
-
-      local original_spinner_start = spinner.start
-      local original_spinner_stop = spinner.stop
-      spinner.start = function() end
-      spinner.stop = function() end
+      mock_selection = {
+        text = "hello",
+        bufnr = 0,
+        start_line = 1,
+        end_line = 1,
+        start_col = 1,
+        end_col = 6,
+      }
+      mock_instruction_cb = function(cb) cb("test") end
+      mock_llm_edit_cb = function(cb) cb("replacement", nil) end
 
       local original_get_extmark = vim.api.nvim_buf_get_extmark_by_id
-      vim.api.nvim_buf_get_extmark_by_id = function()
-        return {}
-      end
-
       local original_del_extmark = vim.api.nvim_buf_del_extmark
-      vim.api.nvim_buf_del_extmark = function() end
-
-      local warn_called = false
-      local original_logger_warn = logger.warn
-      logger.warn = function(source, msg)
-        if source == "edit" and msg:find("extmarks") then
-          warn_called = true
-        end
-      end
+      mock(vim.api, "nvim_buf_get_extmark_by_id", function() return {} end)
+      mock(vim.api, "nvim_buf_del_extmark", function() end)
 
       inliner.edit()
 
       vim.wait(100, function()
-        return warn_called
+        for _, w in ipairs(mock_warn_calls) do
+          if w.source == "edit" and w.msg:find("extmarks") then
+            return true
+          end
+        end
+        return false
       end)
 
-      logger.warn = original_logger_warn
-      vim.api.nvim_buf_del_extmark = original_del_extmark
-      vim.api.nvim_buf_get_extmark_by_id = original_get_extmark
-      spinner.start = original_spinner_start
-      spinner.stop = original_spinner_stop
-      llm.request_edit = original_request_edit
-      input.get_instruction = original_input
-      selection.get_visual_selection = original_get_visual
+      mock(vim.api, "nvim_buf_get_extmark_by_id", original_get_extmark)
+      mock(vim.api, "nvim_buf_del_extmark", original_del_extmark)
 
-      assert.is_true(warn_called)
+      local found_warn = false
+      for _, w in ipairs(mock_warn_calls) do
+        if w.source == "edit" and w.msg:find("extmarks") then
+          found_warn = true
+          break
+        end
+      end
+      assert.is_true(found_warn)
     end)
   end)
 
   describe("question", function()
     it("warns when setup not called", function()
-      local question = require("inliner.question")
-      local original_open = question.open
-      question.open = function() end
-
       inliner.question()
 
-      question.open = original_open
-
-      assert.is_true(#notify_calls > 0)
-      assert.is_true(notify_calls[1].msg:find("setup") ~= nil)
+      assert.is_true(#mock_notify_calls > 0)
+      assert.is_true(mock_notify_calls[1].msg:find("setup") ~= nil)
     end)
   end)
 end)

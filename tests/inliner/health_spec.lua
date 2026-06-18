@@ -1,11 +1,19 @@
 local health = require("inliner.health")
 
+local function mock(t, k, v)
+  t[k] = v
+end
+
 describe("health", function()
   local original_loaded_inliner
   local original_environ
   local original_os_getenv
   local original_executable
   local health_calls = {}
+
+  local mock_environ_return = {}
+  local mock_os_getenv_return = nil
+  local mock_executable_return = function(_) return 1 end
 
   local function capture_health()
     health_calls = {}
@@ -34,6 +42,14 @@ describe("health", function()
     original_os_getenv = os.getenv
     original_executable = vim.fn.executable
 
+    mock_environ_return = {}
+    mock_os_getenv_return = nil
+    mock_executable_return = function(_) return 1 end
+
+    mock(vim.fn, "environ", function() return mock_environ_return end)
+    mock(os, "getenv", function() return mock_os_getenv_return end)
+    mock(vim.fn, "executable", function(name) return mock_executable_return(name) end)
+
     capture_health()
   end)
 
@@ -43,9 +59,9 @@ describe("health", function()
     else
       vim.g.loaded_inliner = original_loaded_inliner
     end
-    vim.fn.environ = original_environ
-    os.getenv = original_os_getenv
-    vim.fn.executable = original_executable
+    mock(vim.fn, "environ", original_environ)
+    mock(os, "getenv", original_os_getenv)
+    mock(vim.fn, "executable", original_executable)
   end)
 
   it("reports error when plugin not loaded", function()
@@ -53,22 +69,13 @@ describe("health", function()
 
     health.check()
 
-    assert.equals(2, #health_calls)
-    assert.equals("start", health_calls[1].type)
-    assert.equals("error", health_calls[2].type)
+    assert.are.equal(2, #health_calls)
+    assert.are.equal("start", health_calls[1].type)
+    assert.are.equal("error", health_calls[2].type)
   end)
 
   it("reports ok when plugin loaded", function()
     vim.g.loaded_inliner = true
-    vim.fn.environ = function()
-      return {}
-    end
-    os.getenv = function()
-      return nil
-    end
-    vim.fn.executable = function()
-      return 1
-    end
 
     package.loaded["inliner"] = nil
     local inliner = require("inliner")
@@ -88,15 +95,6 @@ describe("health", function()
 
   it("reports warn when setup not called", function()
     vim.g.loaded_inliner = true
-    vim.fn.environ = function()
-      return {}
-    end
-    os.getenv = function()
-      return nil
-    end
-    vim.fn.executable = function()
-      return 1
-    end
 
     package.loaded["inliner"] = nil
     local inliner = require("inliner")
@@ -116,15 +114,6 @@ describe("health", function()
 
   it("reports ok when setup called", function()
     vim.g.loaded_inliner = true
-    vim.fn.environ = function()
-      return {}
-    end
-    os.getenv = function()
-      return nil
-    end
-    vim.fn.executable = function()
-      return 1
-    end
 
     package.loaded["inliner"] = nil
     local inliner = require("inliner")
@@ -144,15 +133,6 @@ describe("health", function()
 
   it("reports provider and model info", function()
     vim.g.loaded_inliner = true
-    vim.fn.environ = function()
-      return {}
-    end
-    os.getenv = function()
-      return nil
-    end
-    vim.fn.executable = function()
-      return 1
-    end
 
     package.loaded["inliner"] = nil
     local inliner = require("inliner")
@@ -176,15 +156,6 @@ describe("health", function()
 
   it("reports when API key is not set and provider will fail", function()
     vim.g.loaded_inliner = true
-    vim.fn.environ = function()
-      return {}
-    end
-    os.getenv = function()
-      return nil
-    end
-    vim.fn.executable = function()
-      return 1
-    end
 
     package.loaded["inliner"] = nil
     local inliner = require("inliner")
@@ -204,13 +175,7 @@ describe("health", function()
 
   it("reports curl availability", function()
     vim.g.loaded_inliner = true
-    vim.fn.environ = function()
-      return {}
-    end
-    os.getenv = function()
-      return nil
-    end
-    vim.fn.executable = function(name)
+    mock_executable_return = function(name)
       if name == "curl" then
         return 1
       end
@@ -235,15 +200,6 @@ describe("health", function()
 
   it("reports debug logging status", function()
     vim.g.loaded_inliner = true
-    vim.fn.environ = function()
-      return {}
-    end
-    os.getenv = function()
-      return nil
-    end
-    vim.fn.executable = function()
-      return 1
-    end
 
     package.loaded["inliner"] = nil
     local inliner = require("inliner")
@@ -263,15 +219,6 @@ describe("health", function()
 
   it("reports warn summary when not fully configured", function()
     vim.g.loaded_inliner = true
-    vim.fn.environ = function()
-      return {}
-    end
-    os.getenv = function()
-      return nil
-    end
-    vim.fn.executable = function()
-      return 1
-    end
 
     package.loaded["inliner"] = nil
     local inliner = require("inliner")
@@ -291,15 +238,7 @@ describe("health", function()
 
   it("reports ok summary when fully configured", function()
     vim.g.loaded_inliner = true
-    vim.fn.environ = function()
-      return { OPENAI_API_KEY = "sk-xxx" }
-    end
-    os.getenv = function()
-      return nil
-    end
-    vim.fn.executable = function()
-      return 1
-    end
+    mock_environ_return = { OPENAI_API_KEY = "sk-xxx" }
 
     package.loaded["inliner"] = nil
     local inliner = require("inliner")

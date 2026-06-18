@@ -20,15 +20,15 @@ describe("logger", function()
       logger.init({ debug = true, log_file = test_log_file })
 
       assert.is_true(logger.enabled)
-      assert.equals(test_log_file, logger.log_file)
-      assert.equals(1, vim.fn.filereadable(test_log_file))
+      assert.are.equal(test_log_file, logger.log_file)
+      assert.are.equal(1, vim.fn.filereadable(test_log_file))
     end)
 
     it("should not create log file when debug disabled", function()
       logger.init({ debug = false, log_file = test_log_file })
 
       assert.is_false(logger.enabled)
-      assert.equals(0, vim.fn.filereadable(test_log_file))
+      assert.are.equal(0, vim.fn.filereadable(test_log_file))
     end)
 
     it("should use default log file path", function()
@@ -41,13 +41,13 @@ describe("logger", function()
     it("should set custom max_content_size", function()
       logger.init({ debug = true, log_file = test_log_file, debug_max_log_size = 1000 })
 
-      assert.equals(1000, logger.max_content_size)
+      assert.are.equal(1000, logger.max_content_size)
     end)
 
     it("should use default max_content_size", function()
       logger.init({ debug = true, log_file = test_log_file })
 
-      assert.equals(5000, logger.max_content_size)
+      assert.are.equal(5000, logger.max_content_size)
     end)
   end)
 
@@ -108,7 +108,7 @@ describe("logger", function()
       logger.debug("test-source", "another message")
       size = vim.fn.getfsize(test_log_file)
 
-      assert.equals(initial_size, size)
+      assert.are.equal(initial_size, size)
     end)
   end)
 

@@ -30,7 +30,7 @@ function M.show(opts, callback, cancel_callback)
   state.cancel_callback = cancel_callback
 
   local buf = vim.api.nvim_create_buf(false, true)
-  vim.api.nvim_buf_set_option(buf, "bufhidden", "wipe")
+  vim.bo[buf].bufhidden = "wipe"
 
   local prompt = opts.prompt or "Instruction:"
   local width = opts.width or 55
@@ -69,12 +69,12 @@ function M.show(opts, callback, cancel_callback)
     title_pos = "left",
   })
 
-  vim.api.nvim_win_set_option(win, "winhl", "Normal:NormalFloat,FloatBorder:FloatBorder")
-  vim.api.nvim_win_set_option(win, "wrap", true)
-  vim.api.nvim_win_set_option(win, "linebreak", true)
+  vim.wo[win].winhl = "Normal:NormalFloat,FloatBorder:FloatBorder"
+  vim.wo[win].wrap = true
+  vim.wo[win].linebreak = true
 
-  vim.api.nvim_buf_set_option(buf, "textwidth", 0)
-  vim.api.nvim_buf_set_option(buf, "wrapmargin", 0)
+  vim.bo[buf].textwidth = 0
+  vim.bo[buf].wrapmargin = 0
 
   vim.api.nvim_win_set_cursor(win, { input_line_idx, 3 })
   vim.cmd("startinsert!")
@@ -119,7 +119,7 @@ function M.show(opts, callback, cancel_callback)
     buffer = buf,
     once = true,
     callback = function()
-      pcall(vim.cmd, "stopinsert")
+      pcall(function() vim.cmd("stopinsert") end)
       state.win = nil
       state.buf = nil
     end,
@@ -137,7 +137,7 @@ function M.close()
   state.buf = nil
   state.callback = nil
   state.cancel_callback = nil
-  pcall(vim.cmd, "stopinsert")
+  pcall(function() vim.cmd("stopinsert") end)
 end
 
 return M

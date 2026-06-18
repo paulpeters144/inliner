@@ -21,7 +21,7 @@ function M.init(config)
   end
 
   local log_dir = vim.fn.fnamemodify(M.log_file, ":h")
-  local mkdir_result = vim.fn.mkdir(log_dir, "p", tonumber("700", 8))
+  local mkdir_result = vim.fn.mkdir(log_dir, "p", "700")
 
   local success, err = pcall(function()
     local file = io.open(M.log_file, "a")

@@ -24,9 +24,9 @@ describe("input", function()
 
       local input = with_mock_popup({
         show = function(opts, submit_cb, cancel_cb)
-          assert.equals("󱚣", opts.icon)
-          assert.equals("AI Edit", opts.title)
-          assert.equals("AI Edit: ", opts.prompt)
+          assert.are.equal("󱚣", opts.icon)
+          assert.are.equal("AI Edit", opts.title)
+          assert.are.equal("AI Edit: ", opts.prompt)
           submit_cb("test instruction")
         end,
       })
@@ -37,7 +37,7 @@ describe("input", function()
       end)
 
       assert.is_true(called)
-      assert.equals("test instruction", result)
+      assert.are.equal("test instruction", result)
     end)
 
     it("should call cancel_callback when input is empty", function()
@@ -85,7 +85,7 @@ describe("input", function()
         result = instruction
       end)
 
-      assert.equals("add error handling with try catch", result)
+      assert.are.equal("add error handling with try catch", result)
     end)
 
     it("should preserve whitespace in instructions", function()
@@ -101,7 +101,7 @@ describe("input", function()
         result = instruction
       end)
 
-      assert.equals("  leading and trailing spaces  ", result)
+      assert.are.equal("  leading and trailing spaces  ", result)
     end)
 
     it("should use custom input options from config", function()
@@ -114,9 +114,9 @@ describe("input", function()
 
       local input = with_mock_popup({
         show = function(opts, submit_cb, cancel_cb)
-          assert.equals("󱚣", opts.icon)
-          assert.equals("Custom Prompt", opts.title)
-          assert.equals("Custom Prompt: ", opts.prompt)
+          assert.are.equal("󱚣", opts.icon)
+          assert.are.equal("Custom Prompt", opts.title)
+          assert.are.equal("Custom Prompt: ", opts.prompt)
           submit_cb("test")
         end,
       })

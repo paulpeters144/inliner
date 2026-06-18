@@ -126,7 +126,11 @@ function M.extract_copilot_token()
   local config_path = home .. "/.config/github-copilot/apps.json"
 
   if vim.fn.has("win32") == 1 then
-    config_path = os.getenv("APPDATA") .. "/GitHub Copilot/apps.json"
+    local appdata = os.getenv("APPDATA")
+    if not appdata then
+      return nil, "APPDATA environment variable is not set. Cannot find Copilot config."
+    end
+    config_path = appdata .. "/GitHub Copilot/apps.json"
   end
 
   if vim.fn.filereadable(config_path) == 0 then
