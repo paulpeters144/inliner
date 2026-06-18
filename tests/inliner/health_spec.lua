@@ -13,7 +13,9 @@ describe("health", function()
 
   local mock_environ_return = {}
   local mock_os_getenv_return = nil
-  local mock_executable_return = function(_) return 1 end
+  local mock_executable_return = function(_)
+    return 1
+  end
 
   local function capture_health()
     health_calls = {}
@@ -44,11 +46,19 @@ describe("health", function()
 
     mock_environ_return = {}
     mock_os_getenv_return = nil
-    mock_executable_return = function(_) return 1 end
+    mock_executable_return = function(_)
+      return 1
+    end
 
-    mock(vim.fn, "environ", function() return mock_environ_return end)
-    mock(os, "getenv", function() return mock_os_getenv_return end)
-    mock(vim.fn, "executable", function(name) return mock_executable_return(name) end)
+    mock(vim.fn, "environ", function()
+      return mock_environ_return
+    end)
+    mock(os, "getenv", function()
+      return mock_os_getenv_return
+    end)
+    mock(vim.fn, "executable", function(name)
+      return mock_executable_return(name)
+    end)
 
     capture_health()
   end)

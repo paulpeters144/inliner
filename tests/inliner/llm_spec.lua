@@ -13,7 +13,9 @@ describe("llm", function()
     original_environ = vim.fn.environ
     mock_environ_return = {}
     mock_os_getenv_return = nil
-    mock(vim.fn, "environ", function() return mock_environ_return end)
+    mock(vim.fn, "environ", function()
+      return mock_environ_return
+    end)
     mock(os, "getenv", function(name)
       if type(mock_os_getenv_return) == "function" then
         return mock_os_getenv_return(name)
@@ -151,7 +153,9 @@ describe("llm", function()
   describe("extract_copilot_token", function()
     it("should return error when config file not found", function()
       mock_os_getenv_return = function(name)
-        if name == "APPDATA" then return "C:\\Users\\test\\AppData\\Roaming" end
+        if name == "APPDATA" then
+          return "C:\\Users\\test\\AppData\\Roaming"
+        end
         return nil
       end
       local token, err = llm.extract_copilot_token()

@@ -38,8 +38,12 @@ describe("inliner", function()
     mock_keymap_calls = {}
     mock_warn_calls = {}
     mock_selection = nil
-    mock_instruction_cb = function(cb) cb("default instruction") end
-    mock_llm_edit_cb = function(cb) cb("default", nil) end
+    mock_instruction_cb = function(cb)
+      cb("default instruction")
+    end
+    mock_llm_edit_cb = function(cb)
+      cb("default", nil)
+    end
     mock_replace_called = false
     mock_inject_called = false
     mock_question_open_called = false
@@ -54,7 +58,9 @@ describe("inliner", function()
       table.insert(mock_keymap_calls, { lhs = lhs })
     end)
 
-    mock(selection, "get_visual_selection", function() return mock_selection end)
+    mock(selection, "get_visual_selection", function()
+      return mock_selection
+    end)
     mock(input, "get_instruction", function(_, cb)
       if mock_instruction_cb then
         mock_instruction_cb(cb)
@@ -67,14 +73,20 @@ describe("inliner", function()
     end)
     mock(spinner, "start", function() end)
     mock(spinner, "stop", function() end)
-    mock(replace, "replace_selection", function(_, _) mock_replace_called = true end)
-    mock(diff, "inject_conflict_markers", function(_, _) mock_inject_called = true end)
+    mock(replace, "replace_selection", function(_, _)
+      mock_replace_called = true
+    end)
+    mock(diff, "inject_conflict_markers", function(_, _)
+      mock_inject_called = true
+    end)
     mock(logger, "warn", function(source, msg)
       table.insert(mock_warn_calls, { source = source, msg = msg })
     end)
 
     local q = require("inliner.question")
-    mock(q, "open", function() mock_question_open_called = true end)
+    mock(q, "open", function()
+      mock_question_open_called = true
+    end)
 
     package.loaded["inliner"] = nil
     inliner = require("inliner")
@@ -216,7 +228,9 @@ describe("inliner", function()
         start_col = 1,
         end_col = 5,
       }
-      mock_instruction_cb = function(cb) cb("instruction") end
+      mock_instruction_cb = function(cb)
+        cb("instruction")
+      end
 
       inliner.edit()
 
@@ -241,7 +255,9 @@ describe("inliner", function()
         start_col = 1,
         end_col = 12,
       }
-      mock_instruction_cb = function(cb) cb("replace with goodbye") end
+      mock_instruction_cb = function(cb)
+        cb("replace with goodbye")
+      end
       mock_llm_edit_cb = function(cb)
         cb("goodbye world", nil)
       end
@@ -266,7 +282,9 @@ describe("inliner", function()
         start_col = 1,
         end_col = 12,
       }
-      mock_instruction_cb = function(cb) cb("modify code") end
+      mock_instruction_cb = function(cb)
+        cb("modify code")
+      end
       mock_llm_edit_cb = function(cb)
         cb("modified code", nil)
       end
@@ -291,12 +309,18 @@ describe("inliner", function()
         start_col = 1,
         end_col = 6,
       }
-      mock_instruction_cb = function(cb) cb("test") end
-      mock_llm_edit_cb = function(cb) cb("replacement", nil) end
+      mock_instruction_cb = function(cb)
+        cb("test")
+      end
+      mock_llm_edit_cb = function(cb)
+        cb("replacement", nil)
+      end
 
       local original_get_extmark = vim.api.nvim_buf_get_extmark_by_id
       local original_del_extmark = vim.api.nvim_buf_del_extmark
-      mock(vim.api, "nvim_buf_get_extmark_by_id", function() return {} end)
+      mock(vim.api, "nvim_buf_get_extmark_by_id", function()
+        return {}
+      end)
       mock(vim.api, "nvim_buf_del_extmark", function() end)
 
       inliner.edit()

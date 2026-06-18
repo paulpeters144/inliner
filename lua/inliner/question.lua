@@ -3,6 +3,7 @@ local input = require("inliner.input")
 local logger = require("inliner.logger")
 local spinner = require("inliner.spinner")
 local selection = require("inliner.selection")
+local codesearch = require("inliner.codesearch")
 
 local M = {}
 
@@ -81,6 +82,27 @@ function M.send_request(text, skip_prompt)
   table.insert(state.messages, { role = "user", content = text })
   M.append("user", text)
 
+  if not skip_prompt then
+    local ok_inliner, inliner_for_config = pcall(require, "inliner")
+    if ok_inliner and inliner_for_config then
+      local cs_config = (inliner_for_config.config or {}).codesearch or {}
+      if cs_config.enabled ~= false then
+        local query = codesearch.extract_search_query(text)
+        if query then
+          local results, err = codesearch.search_project(query, {
+            max_results = cs_config.max_results or 15,
+            context_lines = cs_config.context_lines or 3,
+          })
+          if results and #results > 0 then
+            local formatted = codesearch.format_results(results, query)
+            table.insert(state.messages, #state.messages, { role = "system", content = formatted })
+            M.append("system", 'Searched codebase for "' .. query .. '" — found ' .. #results .. " results")
+          end
+        end
+      end
+    end
+  end
+
   local ok, inliner = pcall(require, "inliner")
   if not ok then
     M.append("system", "Error: could not load inliner module. Make sure require('inliner').setup({}) was called.")
@@ -144,6 +166,30 @@ function M.open(cfg)
     end
     context = context .. ":\n\n```\n" .. sel.text .. "\n```"
     table.insert(state.messages, { role = "system", content = context })
+  end
+
+  local ok_global, inliner_global = pcall(require, "inliner")
+  local codesearch_config = config.codesearch
+  if not codesearch_config and ok_global and inliner_global then
+    codesearch_config = (inliner_global.config or {}).codesearch
+  end
+  codesearch_config = codesearch_config or {}
+  if codesearch_config.enabled ~= false then
+    local max_keywords = codesearch_config.max_keywords or 5
+    local keywords = codesearch.extract_keywords(sel and sel.text or "", "")
+    if #keywords > max_keywords then
+      keywords = { table.unpack(keywords, 1, max_keywords) }
+    end
+    for _, kw in ipairs(keywords) do
+      local results, err = codesearch.search_project(kw, {
+        max_results = codesearch_config.max_results or 15,
+        context_lines = codesearch_config.context_lines or 3,
+      })
+      if results and #results > 0 then
+        local formatted = codesearch.format_results(results, kw)
+        table.insert(state.messages, { role = "system", content = formatted })
+      end
+    end
   end
 
   local input_config = {

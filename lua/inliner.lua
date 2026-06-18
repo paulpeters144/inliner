@@ -106,6 +106,12 @@ M.config = {
       incoming = "DiffAdd",
     },
   },
+  codesearch = {
+    enabled = true,
+    max_results = 15,
+    context_lines = 3,
+    max_keywords = 5,
+  },
   debug = false,
   log_file = vim.fn.stdpath("state") .. "/inliner.log",
   debug_max_log_size = 5000,

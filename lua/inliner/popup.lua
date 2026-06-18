@@ -119,7 +119,9 @@ function M.show(opts, callback, cancel_callback)
     buffer = buf,
     once = true,
     callback = function()
-      pcall(function() vim.cmd("stopinsert") end)
+      pcall(function()
+        vim.cmd("stopinsert")
+      end)
       state.win = nil
       state.buf = nil
     end,
@@ -137,7 +139,9 @@ function M.close()
   state.buf = nil
   state.callback = nil
   state.cancel_callback = nil
-  pcall(function() vim.cmd("stopinsert") end)
+  pcall(function()
+    vim.cmd("stopinsert")
+  end)
 end
 
 return M
