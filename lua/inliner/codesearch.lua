@@ -45,6 +45,7 @@ end
 function M.search_project(pattern, opts)
   opts = opts or {}
   local max_results = opts.max_results or 15
+  local max_total_results = opts.max_total_results or 50
   local context_lines = opts.context_lines or 3
   local file_glob = opts.file_glob
 
@@ -123,6 +124,11 @@ function M.search_project(pattern, opts)
 
   if current_result then
     table.insert(results, current_result)
+  end
+
+  if #results > max_total_results then
+    logger.debug("codesearch", "Truncating " .. #results .. " results to " .. max_total_results)
+    results = { table.unpack(results, 1, max_total_results) }
   end
 
   logger.debug("codesearch", "Found " .. #results .. " results for: " .. pattern)

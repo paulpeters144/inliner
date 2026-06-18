@@ -91,6 +91,7 @@ function M.send_request(text, skip_prompt)
         if query then
           local results, err = codesearch.search_project(query, {
             max_results = cs_config.max_results or 15,
+            max_total_results = cs_config.max_total_results or 50,
             context_lines = cs_config.context_lines or 3,
           })
           if results and #results > 0 then
@@ -183,6 +184,7 @@ function M.open(cfg)
     for _, kw in ipairs(keywords) do
       local results, err = codesearch.search_project(kw, {
         max_results = codesearch_config.max_results or 15,
+        max_total_results = codesearch_config.max_total_results or 50,
         context_lines = codesearch_config.context_lines or 3,
       })
       if results and #results > 0 then

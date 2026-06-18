@@ -109,6 +109,7 @@ M.config = {
   codesearch = {
     enabled = true,
     max_results = 15,
+    max_total_results = 50,
     context_lines = 3,
     max_keywords = 5,
   },
