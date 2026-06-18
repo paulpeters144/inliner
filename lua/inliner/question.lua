@@ -118,10 +118,6 @@ function M.send_request(text, skip_prompt)
         table.insert(state.messages, { role = "assistant", content = result })
         M.append("assistant", result)
       end
-
-      if not skip_prompt then
-        M.prompt_input()
-      end
     end)
   end)
 end
