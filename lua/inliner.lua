@@ -66,7 +66,6 @@ M.config = {
       mode = "v",
       desc = "AI Explain Selection",
     },
-
   },
   llm = {
     provider = "openai",
@@ -123,16 +122,6 @@ for _, name in ipairs(VALID_PROVIDERS) do
   VALID_PROVIDER_MAP[name] = true
 end
 
-local function detect_default_provider()
-  for _, name in ipairs(VALID_PROVIDERS) do
-    local key = llm.get_api_key(name)
-    if key and key ~= "" then
-      return name
-    end
-  end
-  return "openai"
-end
-
 function M.setup(opts)
   opts = opts or {}
 
@@ -181,8 +170,6 @@ function M.setup(opts)
 
   setup_called = true
 end
-
-
 
 function M.edit()
   if not setup_called then
