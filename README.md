@@ -5,7 +5,10 @@ A Neovim plugin for AI-powered inline code editing with support for multiple LLM
 Select code, press a keybinding, and the AI edits it inline — no confirmation dialogs.
 
 <div align="center">
-  <video src="docs/video-demo.mp4" controls title="Inliner Demo" width="720"></video>
+  <video controls width="720">
+    <source src="https://github.com/paulpeters144/inliner/raw/main/docs/video-demo.mp4" type="video/mp4">
+    <a href="https://github.com/paulpeters144/inliner/raw/main/docs/video-demo.mp4">Download the demo video</a>
+  </video>
 </div>
 
 ## Features
