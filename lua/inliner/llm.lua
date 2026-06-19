@@ -247,10 +247,12 @@ local function provider_call(provider_name, params, callback)
     local chat_messages = params.messages
     if not chat_messages then
       local user_content = "Instruction: " .. params.instruction
-      if params.file_path then
+      if params.file_path and params.file_path ~= "" then
         user_content = user_content .. "\n\n<file_path>" .. params.file_path .. "</file_path>"
       end
-      if params.code then
+      if params.context then
+        user_content = user_content .. "\n\n" .. params.context
+      elseif params.code then
         user_content = user_content .. "\n\n<selection>\n" .. params.code .. "\n</selection>"
       end
       chat_messages = {
@@ -312,10 +314,12 @@ local function provider_call(provider_name, params, callback)
     local chat_messages = params.messages
     if not chat_messages then
       local user_content = "Instruction: " .. params.instruction
-      if params.file_path then
+      if params.file_path and params.file_path ~= "" then
         user_content = user_content .. "\n\n<file_path>" .. params.file_path .. "</file_path>"
       end
-      if params.code then
+      if params.context then
+        user_content = user_content .. "\n\n" .. params.context
+      elseif params.code then
         user_content = user_content .. "\n\n<selection>\n" .. params.code .. "\n</selection>"
       end
       chat_messages = {
@@ -389,10 +393,12 @@ local function provider_call(provider_name, params, callback)
       local chat_messages = params.messages
       if not chat_messages then
         local user_content = "Instruction: " .. params.instruction
-        if params.file_path then
+        if params.file_path and params.file_path ~= "" then
           user_content = user_content .. "\n\n<file_path>" .. params.file_path .. "</file_path>"
         end
-        if params.code then
+        if params.context then
+          user_content = user_content .. "\n\n" .. params.context
+        elseif params.code then
           user_content = user_content .. "\n\n<selection>\n" .. params.code .. "\n</selection>"
         end
         chat_messages = {
@@ -400,19 +406,19 @@ local function provider_call(provider_name, params, callback)
           { role = "user", content = user_content },
         }
       end
-      local payload = {
-        model = model,
-        messages = chat_messages,
-        max_tokens = max_tokens,
-      }
-      logger.debug("llm", "Prompt sent to LLM", payload)
-      local body = vim.json.encode(payload)
+    local payload = {
+      model = model,
+      messages = chat_messages,
+      max_tokens = max_tokens,
+    }
+    logger.debug("llm", "Prompt sent to LLM", payload)
+    local body = vim.json.encode(payload)
 
-      local headers = {
-        ["Content-Type"] = "application/json",
-        ["Authorization"] = "Bearer " .. bearer_token,
-        ["editor-version"] = "vscode/1.90.2",
-      }
+    local headers = {
+      ["Content-Type"] = "application/json",
+      ["Authorization"] = "Bearer " .. bearer_token,
+      ["editor-version"] = "vscode/1.90.2",
+    }
 
       http_request(
         COPILOT_ENDPOINT,

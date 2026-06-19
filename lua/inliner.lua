@@ -5,6 +5,7 @@ local replace = require("inliner.replace")
 local logger = require("inliner.logger")
 local spinner = require("inliner.spinner")
 local diff = require("inliner.diff")
+local util = require("inliner.util")
 
 local M = {}
 local setup_called = false
@@ -92,6 +93,10 @@ M.config = {
       prompt = "Questions: ",
     },
     max_width = 80,
+  },
+  context_lines = {
+    before = 20,
+    after = 10,
   },
   diff_mode = false,
   diff = {
@@ -239,8 +244,37 @@ function M.edit()
       filepath = vim.fn.fnamemodify(filepath, ":.")
     end
 
+    local context_str
+    if M.config.context_lines then
+      local total_lines = vim.api.nvim_buf_line_count(sel.bufnr)
+      local ctx_before = math.min(M.config.context_lines.before, sel.start_line - 1)
+      local ctx_after = math.min(M.config.context_lines.after, total_lines - sel.end_line)
+
+      if ctx_before > 0 or ctx_after > 0 then
+        local before_start = sel.start_line - 1 - ctx_before
+        local before_lines = ctx_before > 0
+            and vim.api.nvim_buf_get_lines(sel.bufnr, before_start, sel.start_line - 1, false)
+          or {}
+        local after_lines = ctx_after > 0
+            and vim.api.nvim_buf_get_lines(sel.bufnr, sel.end_line, sel.end_line + ctx_after, false)
+          or {}
+        local sel_lines = vim.split(sel.text, "\n")
+
+        context_str = util.build_file_context({
+          total_lines = total_lines,
+          before_lines = before_lines,
+          before_start = before_start + 1,
+          sel_lines = sel_lines,
+          sel_start = sel.start_line,
+          after_lines = after_lines,
+          after_start = sel.end_line + 1,
+        })
+      end
+    end
+
     llm.request_edit({
-      code = sel.text,
+      code = not context_str and sel.text or nil,
+      context = context_str,
       file_path = filepath,
       instruction = instruction,
       systemPrompt = M.config.system_prompt,

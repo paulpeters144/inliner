@@ -52,6 +52,32 @@ local function pretty_print_json(json_str)
   return table.concat(result)
 end
 
+function M.build_file_context(opts)
+  if not opts or (#opts.before_lines == 0 and #opts.after_lines == 0) then
+    return nil
+  end
+
+  local parts = {}
+  parts[#parts + 1] = ("<file_context total_lines=\"%d\">"):format(opts.total_lines)
+
+  for i, line in ipairs(opts.before_lines) do
+    parts[#parts + 1] = ("Line %d: %s"):format(opts.before_start + i - 1, line)
+  end
+
+  parts[#parts + 1] = "<selection>"
+  for i, line in ipairs(opts.sel_lines) do
+    parts[#parts + 1] = ("Line %d: %s"):format(opts.sel_start + i - 1, line)
+  end
+  parts[#parts + 1] = "</selection>"
+
+  for i, line in ipairs(opts.after_lines) do
+    parts[#parts + 1] = ("Line %d: %s"):format(opts.after_start + i - 1, line)
+  end
+
+  parts[#parts + 1] = "</file_context>"
+  return table.concat(parts, "\n")
+end
+
 function M.serialize_message(msg)
   if type(msg) == "table" then
     local ok, json = pcall(vim.fn.json_encode, msg)
