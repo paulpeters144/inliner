@@ -2,7 +2,7 @@
 
 A Neovim plugin for AI-powered inline code editing with support for multiple LLM providers (OpenAI, Anthropic, xAI, GitHub Copilot, OpenRouter, Cerebras, Gemini).
 
-Select code, press a keybinding, and the AI edits it inline — no confirmation dialogs.
+Select code, press a keybinding, and the AI edits it inline - no confirmation dialogs.
 
 <div align="center">
   <div style="display: inline-block; padding: 3px; border-radius: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%); box-shadow: 0 8px 32px rgba(102, 126, 234, 0.3);">
@@ -18,10 +18,10 @@ Select code, press a keybinding, and the AI edits it inline — no confirmation 
 
 ## Features
 
-- **AI Edit** (`<leader>ae`) — select code, describe the change, AI rewrites it inline
-- **AI Question** (`<leader>aq`) — ask questions about your code in a chat window
-- **AI Explain** (`<leader>ax`) — get an explanation of selected code in a chat window
-- **Diff mode** — review AI changes as git-style conflict markers before applying
+- **AI Edit** (`<leader>ae`) - select code, describe the change, AI rewrites it inline
+- **AI Question** (`<leader>aq`) - ask questions about your code in a chat window
+- **AI Explain** (`<leader>ax`) - get an explanation of selected code in a chat window
+- **Diff mode** - review AI changes as git-style conflict markers before applying
 - Customizable system prompts, provider, model, and keybindings
 - Multi-turn chat in a floating window
 - Built with Lua for optimal performance
@@ -65,7 +65,7 @@ use {
    export CEREBRAS_API_KEY="your-cerebras-api-key"
    export GEMINI_API_KEY="your-gemini-api-key"
    ```
-   For GitHub Copilot, the token is read automatically from Copilot's `apps.json` — no manual env var needed.
+   For GitHub Copilot, the token is read automatically from Copilot's `apps.json` - no manual env var needed.
 
 2. Select code in visual mode (`v`, `V`, or `Ctrl-v`) and press:
    - `<leader>ae` to edit with AI
@@ -104,7 +104,7 @@ All keybindings are configurable via the `keys` option.
 require("inliner").setup({
   llm = {
     provider = "openai",        -- "openai", "anthropic", "xai", "copilot", "openrouter", "cerebras", "gemini"
-    model = "gpt-4o-mini",      -- Model name (optional — provider default used if nil)
+    model = "gpt-4o-mini",      -- Model name (optional - provider default used if nil)
   },
 })
 ```
