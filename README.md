@@ -5,7 +5,15 @@ A Neovim plugin for AI-powered inline code editing with support for multiple LLM
 Select code, press a keybinding, and the AI edits it inline — no confirmation dialogs.
 
 <div align="center">
-  <img src="docs/video-demo.webp" alt="Demo video" width="720">
+  <div style="display: inline-block; padding: 3px; border-radius: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%); box-shadow: 0 8px 32px rgba(102, 126, 234, 0.3);">
+    <div style="display: inline-block; padding: 3px; border-radius: 17px; background: linear-gradient(180deg, rgba(255,255,255,0.1) 0%, transparent 100%);">
+      <div style="background: #0d1117; border-radius: 15px; padding: 8px;">
+        <img src="docs/video-demo.webp" alt="Inliner Demo" width="720" style="display: block; border-radius: 12px; max-width: 100%;">
+      </div>
+    </div>
+  </div>
+  <br>
+  <sub><samp>Select → Describe → AI rewrites inline</samp></sub>
 </div>
 
 ## Features
