@@ -80,6 +80,7 @@ local function http_request(url, opts, callback)
   local system_opts = {}
   if opts.body then
     system_opts.stdin = opts.body
+    logger.debug("llm", "Request body: " .. opts.body)
   end
 
   logger.debug("llm", "HTTP " .. (opts.method or "GET") .. " " .. url)
@@ -244,15 +245,26 @@ local function provider_call(provider_name, params, callback)
     end
 
     local chat_messages = params.messages
-      or {
+    if not chat_messages then
+      local user_content = "Instruction: " .. params.instruction
+      if params.file_path then
+        user_content = user_content .. "\n\n<file_path>" .. params.file_path .. "</file_path>"
+      end
+      if params.code then
+        user_content = user_content .. "\n\n<selection>\n" .. params.code .. "\n</selection>"
+      end
+      chat_messages = {
         { role = "system", content = system_prompt },
-        { role = "user", content = params.instruction .. "\n\n" .. (params.code or "") },
+        { role = "user", content = user_content },
       }
-    local body = vim.json.encode({
+    end
+    local payload = {
       model = model,
       messages = chat_messages,
       max_tokens = max_tokens,
-    })
+    }
+    logger.debug("llm", "Prompt sent to LLM", payload)
+    local body = vim.json.encode(payload)
 
     local headers = {
       ["Content-Type"] = "application/json",
@@ -298,9 +310,18 @@ local function provider_call(provider_name, params, callback)
 
     local system_content = system_prompt
     local chat_messages = params.messages
-      or {
-        { role = "user", content = params.instruction .. "\n\n" .. (params.code or "") },
+    if not chat_messages then
+      local user_content = "Instruction: " .. params.instruction
+      if params.file_path then
+        user_content = user_content .. "\n\n<file_path>" .. params.file_path .. "</file_path>"
+      end
+      if params.code then
+        user_content = user_content .. "\n\n<selection>\n" .. params.code .. "\n</selection>"
+      end
+      chat_messages = {
+        { role = "user", content = user_content },
       }
+    end
     if params.messages then
       local filtered = {}
       for _, msg in ipairs(params.messages) do
@@ -312,12 +333,14 @@ local function provider_call(provider_name, params, callback)
       end
       chat_messages = filtered
     end
-    local body = vim.json.encode({
+    local payload = {
       model = model,
       system = system_content,
       messages = chat_messages,
       max_tokens = max_tokens,
-    })
+    }
+    logger.debug("llm", "Prompt sent to LLM", payload)
+    local body = vim.json.encode(payload)
 
     local headers = {
       ["Content-Type"] = "application/json",
@@ -364,15 +387,26 @@ local function provider_call(provider_name, params, callback)
       end
 
       local chat_messages = params.messages
-        or {
+      if not chat_messages then
+        local user_content = "Instruction: " .. params.instruction
+        if params.file_path then
+          user_content = user_content .. "\n\n<file_path>" .. params.file_path .. "</file_path>"
+        end
+        if params.code then
+          user_content = user_content .. "\n\n<selection>\n" .. params.code .. "\n</selection>"
+        end
+        chat_messages = {
           { role = "system", content = system_prompt },
-          { role = "user", content = params.instruction .. "\n\n" .. (params.code or "") },
+          { role = "user", content = user_content },
         }
-      local body = vim.json.encode({
+      end
+      local payload = {
         model = model,
         messages = chat_messages,
         max_tokens = max_tokens,
-      })
+      }
+      logger.debug("llm", "Prompt sent to LLM", payload)
+      local body = vim.json.encode(payload)
 
       local headers = {
         ["Content-Type"] = "application/json",

@@ -3,7 +3,6 @@ local input = require("inliner.input")
 local logger = require("inliner.logger")
 local spinner = require("inliner.spinner")
 local selection = require("inliner.selection")
-local codesearch = require("inliner.codesearch")
 
 local M = {}
 
@@ -16,7 +15,11 @@ local state = {
 }
 
 local SYSTEM_PROMPT =
-  [[You are a concise programming assistant integrated into Neovim. Answer questions about the user's code with examples when relevant. Use markdown for code blocks.]]
+  [[You are a concise, expert programming assistant integrated into Neovim.
+- Focus strictly on the provided <selection>.
+- Use the <file_path> to understand imports, types, and surrounding logic.
+- Keep responses extremely concise. Use markdown for code blocks.
+- If the selection is ambiguous, briefly ask for clarification rather than hallucinating.]]
 
 local function get_win_config()
   local max_width = state.config and state.config.max_width
@@ -82,28 +85,6 @@ function M.send_request(text, skip_prompt)
   table.insert(state.messages, { role = "user", content = text })
   M.append("user", text)
 
-  if not skip_prompt then
-    local ok_inliner, inliner_for_config = pcall(require, "inliner")
-    if ok_inliner and inliner_for_config then
-      local cs_config = (inliner_for_config.config or {}).codesearch or {}
-      if cs_config.enabled ~= false then
-        local query = codesearch.extract_search_query(text)
-        if query then
-          local results, err = codesearch.search_project(query, {
-            max_results = cs_config.max_results or 15,
-            max_total_results = cs_config.max_total_results or 50,
-            context_lines = cs_config.context_lines or 3,
-          })
-          if results and #results > 0 then
-            local formatted = codesearch.format_results(results, query)
-            table.insert(state.messages, #state.messages, { role = "system", content = formatted })
-            M.append("system", 'Searched codebase for "' .. query .. '" — found ' .. #results .. " results")
-          end
-        end
-      end
-    end
-  end
-
   local ok, inliner = pcall(require, "inliner")
   if not ok then
     M.append("system", "Error: could not load inliner module. Make sure require('inliner').setup({}) was called.")
@@ -120,14 +101,15 @@ function M.send_request(text, skip_prompt)
 
   spinner.start("Thinking...")
 
-  llm.request_chat({
+  local request_payload = {
     messages = state.messages,
     provider = current_config.llm.provider,
     model = current_config.llm.model,
     baseURL = current_config.llm.base_url,
     maxOutputTokens = current_config.llm.max_output_tokens or 4096,
     timeout = current_config.llm.timeout,
-  }, function(result, err)
+  }
+  llm.request_chat(request_payload, function(result, err)
     vim.schedule(function()
       spinner.stop()
 
@@ -145,14 +127,14 @@ function M.send_request(text, skip_prompt)
   end)
 end
 
-function M.open(cfg)
+function M.open(cfg, range)
   local config = cfg or {}
   state.config = config
   state.messages = {
     { role = "system", content = config.system_prompt or SYSTEM_PROMPT },
   }
 
-  local sel = selection.get_visual_selection()
+  local sel = selection.get_visual_selection(range)
   if not sel then
     sel = selection.get_line_selection()
   end
@@ -161,37 +143,9 @@ function M.open(cfg)
     if filepath and filepath ~= "" then
       filepath = vim.fn.fnamemodify(filepath, ":.")
     end
-    local context = "The user has the following code selected"
-    if filepath and filepath ~= "" then
-      context = context .. " in " .. filepath
-    end
-    context = context .. ":\n\n```\n" .. sel.text .. "\n```"
-    table.insert(state.messages, { role = "system", content = context })
-  end
-
-  local ok_global, inliner_global = pcall(require, "inliner")
-  local codesearch_config = config.codesearch
-  if not codesearch_config and ok_global and inliner_global then
-    codesearch_config = (inliner_global.config or {}).codesearch
-  end
-  codesearch_config = codesearch_config or {}
-  if codesearch_config.enabled ~= false then
-    local max_keywords = codesearch_config.max_keywords or 5
-    local keywords = codesearch.extract_keywords(sel and sel.text or "", "")
-    if #keywords > max_keywords then
-      keywords = { table.unpack(keywords, 1, max_keywords) }
-    end
-    for _, kw in ipairs(keywords) do
-      local results, err = codesearch.search_project(kw, {
-        max_results = codesearch_config.max_results or 15,
-        max_total_results = codesearch_config.max_total_results or 50,
-        context_lines = codesearch_config.context_lines or 3,
-      })
-      if results and #results > 0 then
-        local formatted = codesearch.format_results(results, kw)
-        table.insert(state.messages, { role = "system", content = formatted })
-      end
-    end
+    local context = "\n\n<file_path>" .. (filepath or "unknown") .. "</file_path>\n"
+    context = context .. "<selection>\n" .. sel.text .. "\n</selection>"
+    state.messages[1].content = state.messages[1].content .. context
   end
 
   local input_config = {

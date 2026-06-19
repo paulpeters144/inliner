@@ -1,6 +1,6 @@
 local question = require("inliner.question")
 local selection = require("inliner.selection")
-local codesearch = require("inliner.codesearch")
+local logger = require("inliner.logger")
 
 local M = {}
 
@@ -32,30 +32,6 @@ function M.explain()
     { role = "system", content = EXPLAIN_PROMPT },
     { role = "system", content = context },
   }
-
-  local ok, inliner = pcall(require, "inliner")
-  local codesearch_config = {}
-  if ok and inliner then
-    codesearch_config = (inliner.config or {}).codesearch or {}
-  end
-  if codesearch_config.enabled ~= false then
-    local max_keywords = codesearch_config.max_keywords or 5
-    local keywords = codesearch.extract_keywords(sel.text, "")
-    if #keywords > max_keywords then
-      keywords = { table.unpack(keywords, 1, max_keywords) }
-    end
-    for _, kw in ipairs(keywords) do
-      local results, err = codesearch.search_project(kw, {
-        max_results = codesearch_config.max_results or 15,
-        max_total_results = codesearch_config.max_total_results or 50,
-        context_lines = codesearch_config.context_lines or 3,
-      })
-      if results and #results > 0 then
-        local formatted = codesearch.format_results(results, kw)
-        table.insert(messages, { role = "system", content = formatted })
-      end
-    end
-  end
 
   question.open_with_messages({ input = { prompt = "Ask about the explanation: " } }, messages, "Explain this code")
 end

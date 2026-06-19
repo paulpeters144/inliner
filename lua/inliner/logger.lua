@@ -21,7 +21,11 @@ function M.init(config)
   end
 
   local log_dir = vim.fn.fnamemodify(M.log_file, ":h")
-  local mkdir_result = vim.fn.mkdir(log_dir, "p", "700")
+  local success = vim.fn.mkdir(log_dir, "p", "0700")
+  if success == 0 then
+    vim.notify("Failed to create log directory: " .. log_dir, vim.log.levels.ERROR)
+    return
+  end
 
   local success, err = pcall(function()
     local file = io.open(M.log_file, "a")
@@ -65,6 +69,8 @@ local function truncate_content(content)
   return truncated .. "\n... (truncated, " .. remaining .. " more chars)"
 end
 
+local util = require("inliner.util")
+
 local function write_log(level, source, message, content)
   if not M.enabled then
     return
@@ -76,11 +82,15 @@ local function write_log(level, source, message, content)
   end
 
   local timestamp = format_timestamp()
-  local log_line = string.format("[%s] [%s] [lua:%s] %s", timestamp, level, source, message)
+  local msg = util.serialize_message(message)
+  local log_line = string.format("[%s] [%s] [lua:%s] %s", timestamp, level, source, msg)
 
   file:write(log_line .. "\n")
 
   if content then
+    if type(content) ~= "string" then
+      content = vim.inspect(content)
+    end
     local safe_content = truncate_content(content)
     for line in safe_content:gmatch("[^\n]+") do
       file:write("  " .. line .. "\n")

@@ -95,13 +95,6 @@ require("inliner").setup({
     timeout = 30000,            -- Request timeout in ms
     max_output_tokens = nil,
   },
-  codesearch = {
-    enabled = true,             -- Enable/disable codebase search for question/explain
-    max_results = 15,           -- Max search results per file
-    max_total_results = 50,     -- Max search results total across all files
-    context_lines = 3,          -- Lines of context around each match
-    max_keywords = 5,           -- Max keywords extracted from selection
-  },
   diff_mode = false,
   input = {
     prompt = "AI Edit: ",

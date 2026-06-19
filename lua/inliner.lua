@@ -13,9 +13,11 @@ local SELECTION_NS = vim.api.nvim_create_namespace("inliner-selection")
 
 M.config = {
   system_prompt = [[
-  You are an expert code editor. Given selected code and an instruction,
-  return only the modified code. Preserve the original style, structure,
-  and indentation. Omit explanations and markdown formatting.
+  You are an expert code editor. Given selected code, file path, and an instruction:
+  - Focus strictly on the provided <selection>.
+  - Return only the modified code.
+  - Preserve the original style, structure, and indentation.
+  - Omit explanations and markdown formatting.
   ]],
   keys = {
     {
@@ -87,7 +89,7 @@ M.config = {
   question = {
     system_prompt = nil,
     input = {
-      prompt = "Question: ",
+      prompt = "Questions: ",
     },
     max_width = 80,
   },
@@ -105,13 +107,6 @@ M.config = {
       current = "DiffText",
       incoming = "DiffAdd",
     },
-  },
-  codesearch = {
-    enabled = true,
-    max_results = 15,
-    max_total_results = 50,
-    context_lines = 3,
-    max_keywords = 5,
   },
   debug = false,
   log_file = vim.fn.stdpath("state") .. "/inliner.log",
@@ -239,8 +234,14 @@ function M.edit()
 
     spinner.start("Processing edit...")
 
+    local filepath = vim.api.nvim_buf_get_name(sel.bufnr)
+    if filepath and filepath ~= "" then
+      filepath = vim.fn.fnamemodify(filepath, ":.")
+    end
+
     llm.request_edit({
       code = sel.text,
+      file_path = filepath,
       instruction = instruction,
       systemPrompt = M.config.system_prompt,
       provider = M.config.llm.provider,
@@ -315,7 +316,7 @@ function M.explain()
   require("inliner.explain").explain()
 end
 
-function M.question()
+function M.question(range)
   if not setup_called then
     vim.notify(
       '[inliner] setup() never called — using defaults. Call require("inliner").setup({}) in your config.',
@@ -323,7 +324,7 @@ function M.question()
     )
   end
 
-  require("inliner.question").open(M.config.question)
+  require("inliner.question").open(M.config.question, range)
 end
 
 M.diff = diff
