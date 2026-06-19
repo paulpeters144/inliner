@@ -106,6 +106,7 @@ local function parse_json(str)
   if ok then
     return result
   end
+  logger.error("llm", "Failed to parse JSON response: " .. tostring(str))
   return nil
 end
 
@@ -129,25 +130,27 @@ function M.extract_copilot_token()
   if vim.fn.has("win32") == 1 then
     local appdata = os.getenv("APPDATA")
     if not appdata then
+      logger.error("copilot", "APPDATA environment variable is not set")
       return nil, "APPDATA environment variable is not set. Cannot find Copilot config."
     end
     config_path = appdata .. "/GitHub Copilot/apps.json"
   end
 
   if vim.fn.filereadable(config_path) == 0 then
-    return nil,
-      "Copilot not authenticated. Install and authenticate copilot.lua first. Expected config at: "
-        .. config_path
-        .. ". Run `:checkhealth inliner` for details."
+    local msg = "Copilot not authenticated. Expected config at: " .. config_path
+    logger.error("copilot", msg)
+    return nil, msg .. ". Run `:checkhealth inliner` for details."
   end
 
   local ok, content = pcall(vim.fn.readfile, config_path)
   if not ok or not content then
+    logger.error("copilot", "Could not read Copilot config file: " .. config_path)
     return nil, "Could not read Copilot config file: " .. config_path
   end
 
   local config = parse_json(table.concat(content, "\n"))
   if not config then
+    logger.error("copilot", "Copilot config file is corrupted (invalid JSON): " .. config_path)
     return nil, "Copilot config file is corrupted (invalid JSON): " .. config_path
   end
 
@@ -160,11 +163,13 @@ function M.extract_copilot_token()
   end
 
   if not github_key then
+    logger.error("copilot", "Copilot config missing github.com entry")
     return nil, "Copilot config missing github.com entry"
   end
 
   local token = config[github_key] and config[github_key].oauth_token
   if not token or token == "" then
+    logger.error("copilot", "Copilot config missing oauth_token")
     return nil, "Copilot config missing oauth_token"
   end
 
@@ -188,12 +193,14 @@ local function exchange_copilot_token(oauth_token, callback)
 
   http_request(COPILOT_TOKEN_URL, { method = "GET", headers = headers, timeout = 10000 }, function(body, err)
     if err then
+      logger.error("copilot", "Failed to exchange Copilot token: " .. err)
       callback(nil, "Failed to exchange Copilot token: " .. err)
       return
     end
 
     local data = parse_json(body)
     if not data then
+      logger.error("copilot", "Failed to parse Copilot token response")
       callback(nil, "Failed to parse Copilot token response")
       return
     end
@@ -204,6 +211,7 @@ local function exchange_copilot_token(oauth_token, callback)
       logger.debug("copilot", "Exchanged OAuth token for bearer token")
       callback(data.token, nil)
     else
+      logger.error("copilot", "Copilot token response missing 'token' field")
       callback(nil, "Copilot token response missing 'token' field")
     end
   end)
@@ -218,6 +226,7 @@ end
 
 local function provider_call(provider_name, params, callback)
   if not check_curl() then
+    logger.error("llm", "curl is not available on PATH")
     callback(nil, "curl is not available on PATH. Install curl to make API requests.")
     return
   end
@@ -240,6 +249,7 @@ local function provider_call(provider_name, params, callback)
     local url = endpoint .. "/chat/completions"
 
     if not api_key then
+      logger.error("llm", M.PROVIDER_API_KEYS[provider_name] .. " is not set for provider: " .. provider_name)
       callback(nil, M.PROVIDER_API_KEYS[provider_name] .. " is not set. Run `:checkhealth inliner` for setup help.")
       return
     end
@@ -275,16 +285,19 @@ local function provider_call(provider_name, params, callback)
 
     http_request(url, { method = "POST", headers = headers, body = body, timeout = timeout }, function(resp, err)
       if err then
+        logger.error("llm", "Request to " .. provider_name .. " failed: " .. err)
         callback(nil, err)
         return
       end
       local data = parse_json(resp)
       if not data then
+        logger.error("llm", "Failed to parse " .. provider_name .. " response")
         callback(nil, "Failed to parse API response. Check your network and API key. Run `:checkhealth inliner`.")
         return
       end
       if data.error then
         local msg = type(data.error) == "string" and data.error or (data.error.message or tostring(data.error))
+        logger.error("llm", "API error from " .. provider_name .. ": " .. msg)
         callback(
           nil,
           "API error (" .. provider_name .. "): " .. msg .. ". Run `:checkhealth inliner` if this persists."
@@ -298,7 +311,7 @@ local function provider_call(provider_name, params, callback)
         end
         callback(result, nil)
       else
-        logger.debug("llm", "Unexpected response: " .. (resp or "nil"))
+        logger.error("llm", "Unexpected response from " .. provider_name .. ": " .. (resp or "nil"))
         callback(nil, "Unexpected response from " .. provider_name .. ". Run `:checkhealth inliner`.")
       end
     end)
@@ -306,6 +319,7 @@ local function provider_call(provider_name, params, callback)
     local url = (params.baseURL or DEFAULT_ENDPOINTS.anthropic) .. "/messages"
 
     if not api_key then
+      logger.error("llm", "ANTHROPIC_API_KEY is not set for provider: anthropic")
       callback(nil, "ANTHROPIC_API_KEY is not set. Run `:checkhealth inliner` for setup help.")
       return
     end
@@ -354,16 +368,19 @@ local function provider_call(provider_name, params, callback)
 
     http_request(url, { method = "POST", headers = headers, body = body, timeout = timeout }, function(resp, err)
       if err then
+        logger.error("llm", "Request to anthropic failed: " .. err)
         callback(nil, err)
         return
       end
       local data = parse_json(resp)
       if not data then
+        logger.error("llm", "Failed to parse anthropic response")
         callback(nil, "Failed to parse API response. Check your network and API key. Run `:checkhealth inliner`.")
         return
       end
       if data.error then
         local msg = type(data.error) == "string" and data.error or (data.error.message or tostring(data.error))
+        logger.error("llm", "API error from anthropic: " .. msg)
         callback(nil, "API error (anthropic): " .. msg .. ". Run `:checkhealth inliner` if this persists.")
         return
       end
@@ -374,18 +391,21 @@ local function provider_call(provider_name, params, callback)
         end
         callback(result, nil)
       else
+        logger.error("llm", "Unexpected response from anthropic")
         callback(nil, "Unexpected response from anthropic. Run `:checkhealth inliner`.")
       end
     end)
   elseif provider_name == "copilot" then
     local oauth_token, err = M.extract_copilot_token()
     if not oauth_token then
+      logger.error("llm", "Copilot token extraction failed: " .. err)
       callback(nil, err)
       return
     end
 
     exchange_copilot_token(oauth_token, function(bearer_token, err)
       if err then
+        logger.error("llm", "Copilot token exchange failed: " .. err)
         callback(nil, err)
         return
       end
@@ -425,16 +445,19 @@ local function provider_call(provider_name, params, callback)
         { method = "POST", headers = headers, body = body, timeout = timeout },
         function(resp, err)
           if err then
+            logger.error("llm", "Request to copilot failed: " .. err)
             callback(nil, err)
             return
           end
           local data = parse_json(resp)
           if not data then
+            logger.error("llm", "Failed to parse copilot response")
             callback(nil, "Failed to parse Copilot response. Run `:checkhealth inliner` for help.")
             return
           end
           if data.error then
             local msg = type(data.error) == "string" and data.error or (data.error.message or tostring(data.error))
+            logger.error("llm", "API error from copilot: " .. msg)
             callback(nil, "Copilot error: " .. msg .. ". Run `:checkhealth inliner` if this persists.")
             return
           end
@@ -445,12 +468,14 @@ local function provider_call(provider_name, params, callback)
             end
             callback(result, nil)
           else
+            logger.error("llm", "Unexpected response from copilot")
             callback(nil, "Unexpected response from Copilot. Run `:checkhealth inliner`.")
           end
         end
       )
     end)
   else
+    logger.error("llm", "Unknown provider: " .. provider_name)
     callback(nil, "Unknown provider: " .. provider_name)
   end
 end

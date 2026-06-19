@@ -72,10 +72,6 @@ end
 local util = require("inliner.util")
 
 local function write_log(level, source, message, content)
-  if not M.enabled then
-    return
-  end
-
   local file = io.open(M.log_file, "a")
   if not file then
     return
@@ -101,10 +97,16 @@ local function write_log(level, source, message, content)
 end
 
 function M.debug(source, message, content)
+  if not M.enabled then
+    return
+  end
   write_log(levels.DEBUG, source, message, content)
 end
 
 function M.info(source, message, content)
+  if not M.enabled then
+    return
+  end
   write_log(levels.INFO, source, message, content)
 end
 
