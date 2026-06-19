@@ -20,7 +20,3 @@ format-lua:
 	@stylua lua/ plugin/ tests/
 
 format: format-lua
-
-install-hooks: scripts/pre-commit
-	@cp scripts/pre-commit .git/hooks/pre-commit
-	@chmod +x .git/hooks/pre-commit
