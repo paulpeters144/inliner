@@ -211,4 +211,4 @@ make lint-lua      # Lint Lua files only
 
 ## License
 
-MIT
+[MIT](LICENSE)
