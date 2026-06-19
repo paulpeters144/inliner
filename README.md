@@ -13,7 +13,6 @@ Select code, press a keybinding, and the AI edits it inline - no confirmation di
     </div>
   </div>
   <br>
-  <sub><samp>Select → Describe → AI rewrites inline</samp></sub>
 </div>
 
 ## Features
